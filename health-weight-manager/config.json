@@ -1,0 +1,14 @@
+{
+  "name": "health-weight-manager",
+  "version": "1.0.0",
+  "description": "体重管理与健康提醒 Skill，支持每日体重记录、定时提醒和周报回顾",
+  "main": "scripts/index.js",
+  "scripts": {
+    "init": "node scripts/init.js",
+    "test": "node --test tests/**/*.test.js"
+  },
+  "dependencies": {},
+  "engines": {
+    "node": ">=22.14.0"
+  }
+}

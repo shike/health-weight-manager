@@ -7,49 +7,7 @@
  *   node scripts/report.js weekly            # 生成周报
  */
 
-const fs = require('fs');
-const path = require('path');
-
-function getDataDir() {
-  return path.resolve(__dirname, '..', 'data');
-}
-
-function readAllRecords(dataDir) {
-  const recordsPath = path.join(dataDir, 'weight_records.jsonl');
-  if (!fs.existsSync(recordsPath)) return [];
-
-  const content = fs.readFileSync(recordsPath, 'utf-8').trim();
-  if (!content) return [];
-
-  const lines = content.split('\n').filter(line => line.trim());
-  const records = [];
-
-  for (const line of lines) {
-    try {
-      const record = JSON.parse(line);
-      if (record.timestamp && typeof record.weight === 'number') {
-        records.push(record);
-      }
-    } catch {
-      // 忽略解析失败的行
-    }
-  }
-
-  records.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-  return records;
-}
-
-function readConfig(dataDir) {
-  const configPath = path.join(dataDir, 'user_config.json');
-  if (!fs.existsSync(configPath)) {
-    return { target_weight: null };
-  }
-  try {
-    return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-  } catch {
-    return { target_weight: null };
-  }
-}
+const { getDataDir, readAllRecords, readConfig } = require('./utils');
 
 /**
  * 获取日期所在的周编号（ISO 周）

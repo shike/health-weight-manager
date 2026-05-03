@@ -8,35 +8,7 @@
 
 const fs = require('fs');
 const path = require('path');
-
-function getDataDir() {
-  return path.resolve(__dirname, '..', 'data');
-}
-
-function readAllRecords(dataDir) {
-  const recordsPath = path.join(dataDir, 'weight_records.jsonl');
-  if (!fs.existsSync(recordsPath)) return [];
-
-  const content = fs.readFileSync(recordsPath, 'utf-8').trim();
-  if (!content) return [];
-
-  const lines = content.split('\n').filter(line => line.trim());
-  const records = [];
-
-  for (const line of lines) {
-    try {
-      const record = JSON.parse(line);
-      if (record.timestamp && typeof record.weight === 'number') {
-        records.push(record);
-      }
-    } catch {
-      // 忽略解析失败的行
-    }
-  }
-
-  records.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-  return records;
-}
+const { getDataDir, readAllRecords } = require('./utils');
 
 /**
  * 导出为 CSV

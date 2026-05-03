@@ -8,6 +8,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { ensureDir, safeWriteFile, getDataDir } = require('./utils');
 
 // 默认健康小贴士
 const DEFAULT_HEALTH_TIPS = [
@@ -36,42 +37,19 @@ const DEFAULT_CONFIG = {
 /**
  * 获取数据目录路径
  */
-function getDataDir() {
+function resolveDataDir() {
   const customDir = process.argv[2];
   if (customDir) {
     return path.resolve(customDir);
   }
-  // 默认: 脚本所在目录的上一级/data
-  return path.resolve(__dirname, '..', 'data');
-}
-
-/**
- * 确保目录存在
- */
-function ensureDir(dirPath) {
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
-  }
-}
-
-/**
- * 安全写入文件（不覆盖已有文件）
- */
-function safeWriteFile(filePath, content) {
-  if (fs.existsSync(filePath)) {
-    console.log(`[init] 文件已存在，跳过: ${path.basename(filePath)}`);
-    return false;
-  }
-  fs.writeFileSync(filePath, content, { mode: 0o600 });
-  console.log(`[init] 已创建: ${path.basename(filePath)}`);
-  return true;
+  return getDataDir();
 }
 
 /**
  * 初始化数据目录
  */
 function init(dataDir) {
-  const dir = dataDir || getDataDir();
+  const dir = dataDir || resolveDataDir();
   ensureDir(dir);
 
   // 1. 创建体重记录文件（空文件）
@@ -95,4 +73,4 @@ if (require.main === module) {
   init();
 }
 
-module.exports = { init, getDataDir, DEFAULT_CONFIG, DEFAULT_HEALTH_TIPS };
+module.exports = { init, resolveDataDir, DEFAULT_CONFIG, DEFAULT_HEALTH_TIPS };

@@ -6,15 +6,7 @@
  * 或作为模块: const { query } = require('./query'); query({ days: 7 });
  */
 
-const fs = require('fs');
-const path = require('path');
-
-/**
- * 获取数据目录路径
- */
-function getDataDir() {
-  return path.resolve(__dirname, '..', 'data');
-}
+const { getDataDir, readAllRecords } = require('./utils');
 
 /**
  * 解析日期字符串为本地日期对象
@@ -44,37 +36,6 @@ function formatChange(current, previous) {
   if (rounded > 0) return `⬆️ +${rounded}`;
   if (rounded < 0) return `⬇️ ${rounded}`;
   return '➡️ 0.0';
-}
-
-/**
- * 读取所有体重记录
- */
-function readAllRecords(dataDir) {
-  const recordsPath = path.join(dataDir, 'weight_records.jsonl');
-  if (!fs.existsSync(recordsPath)) {
-    return [];
-  }
-
-  const content = fs.readFileSync(recordsPath, 'utf-8').trim();
-  if (!content) return [];
-
-  const lines = content.split('\n').filter(line => line.trim());
-  const records = [];
-
-  for (const line of lines) {
-    try {
-      const record = JSON.parse(line);
-      if (record.timestamp && typeof record.weight === 'number') {
-        records.push(record);
-      }
-    } catch {
-      // 忽略解析失败的行
-    }
-  }
-
-  // 按时间戳排序（从早到晚）
-  records.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-  return records;
 }
 
 /**

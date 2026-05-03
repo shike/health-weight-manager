@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const { morningReminder, healthReminder, hasRecordedToday } = require('../scripts/reminder');
+const { morningReminder, healthReminder } = require('../scripts/reminder');
 
 describe('reminder.js', () => {
   let tempDir;

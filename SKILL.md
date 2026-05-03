@@ -7,32 +7,10 @@ description: >
   定时发送健康提醒消息和每周体重回顾报告。支持通过消息渠道交互，
   所有数据本地存储。当用户提到体重、称重、健康提醒、体重记录、
   体重趋势、减重目标等相关话题时激活此 Skill。
-triggers:
-  - 体重
-  - 称重
-  - 记录体重
-  - 体重记录
-  - 体重趋势
-  - 减重
-  - 健康提醒
-  - 体重管理
-  - 体重回顾
-  - 体重周报
-  - 目标体重
-  - 设置目标
-  - 导出体重
-  - 查看体重
-  - weight
-  - weight record
-  - weight trend
-  - health reminder
-  - weight goal
-tools:
-  - cron
-  - message
-  - read
-  - write
-  - bash
+license: MIT
+compatibility: >
+  Requires Node.js >= 18.0.0. All data is stored locally under data/.
+  Cron jobs must be configured separately for reminder features to work.
 metadata:
   openclaw:
     requires:
@@ -41,6 +19,15 @@ metadata:
       env: []
     category: health
     language: zh
+  hermes:
+    tags: [health, weight-tracking, reminder, cron]
+    category: health
+    requires_toolsets: [file, terminal, cronjob]
+    config:
+      - key: health.weight.data_dir
+        description: Path to the skill data directory
+        default: "~/.hermes/skills/health/health-weight-manager/data"
+        prompt: Data directory for weight records and config
 ---
 
 # 🏋️ Health Weight Manager
@@ -60,11 +47,14 @@ metadata:
 Skill 数据存储在以下目录：
 
 ```
-~/.openclaw/workspace/skills/health-weight-manager/data/
+data/
 ├── weight_records.jsonl   # 体重记录，每行一个 JSON 对象
 ├── user_config.json       # 用户配置
 └── health_tips.json       # 健康小贴士库
 ```
+
+默认路径为 Skill 根目录下的 `data/` 文件夹。在 Hermes Agent 中，
+完整路径通常为 `~/.hermes/skills/health/health-weight-manager/data/`。
 
 ## 核心工作流
 
@@ -73,7 +63,7 @@ Skill 数据存储在以下目录：
 当用户提供体重数值时（如"65.4"、"记录体重 65.4"）：
 
 1. 解析体重数值和可选备注
-2. 调用 `scripts/record.js` 脚本写入数据
+2. 调用 `node scripts/record.js <weight> [note]` 写入数据
 3. 回复确认消息，包含今日数据和与昨日/目标的对比
 
 **回复模板**：
@@ -87,7 +77,7 @@ Skill 数据存储在以下目录：
 
 当用户请求查看记录时：
 
-1. 调用 `scripts/query.js` 脚本读取数据
+1. 调用 `node scripts/query.js [days]` 读取数据
 2. 按日期倒序展示最近 N 条记录
 3. 计算并展示平均值
 
@@ -107,7 +97,7 @@ Skill 数据存储在以下目录：
 
 当用户请求趋势分析时：
 
-1. 调用 `scripts/report.js trend` 脚本
+1. 调用 `node scripts/report.js trend [weeks]` 生成趋势数据
 2. 展示周/月平均值变化
 3. 给出简要评价和鼓励
 
@@ -128,7 +118,7 @@ Skill 数据存储在以下目录：
 
 由 cron 定时触发。执行流程：
 
-1. 调用 `scripts/reminder.js morning` 检查今日是否已记录
+1. 调用 `node scripts/reminder.js morning` 检查今日是否已记录
 2. 若未记录，组装提醒消息并发送给用户
 3. 等待用户回复体重数值
 
@@ -142,7 +132,7 @@ Skill 数据存储在以下目录：
 
 由 cron 在每周日 20:00 触发。执行流程：
 
-1. 调用 `scripts/report.js weekly` 生成周报数据
+1. 调用 `node scripts/report.js weekly` 生成周报数据
 2. 组装周报消息并发送给用户
 3. 包含周平均值、变化量、记录天数、目标进度
 
@@ -167,7 +157,7 @@ Skill 数据存储在以下目录：
 
 由 cron 定时触发。执行流程：
 
-1. 调用 `scripts/reminder.js health` 从 health_tips.json 中随机选择一条
+1. 调用 `node scripts/reminder.js health` 从 health_tips.json 中随机选择一条
 2. 发送健康小贴士消息
 
 **提醒示例**：
@@ -198,36 +188,47 @@ Skill 数据存储在以下目录：
 
 当用户请求导出时：
 
-1. 调用 `scripts/export.js` 生成 CSV 文件
+1. 调用 `node scripts/export.js` 生成 CSV 文件
 2. 告知用户文件路径
 
 **回复模板**：
 ```
 📤 数据已导出
-文件路径：~/.openclaw/workspace/skills/health-weight-manager/data/weight_export_20260426.csv
+文件路径：data/weight_export_20260426.csv
 共 128 条记录
 ```
 
 ## 错误处理
 
 - **体重数值无效**: 提示用户输入正确的数字，例如"请输入有效的体重数值，如 65.4"
-- **数据文件不存在**: 自动调用 `scripts/init.js` 初始化
+- **数据文件不存在**: 自动调用 `node scripts/init.js` 初始化
 - **配置项缺失**: 使用默认值并提示用户可通过"设置目标"等指令修改
-- **脚本执行失败**: 返回友好错误信息，建议用户检查文件权限或运行 `openclaw doctor`
+- **脚本执行失败**: 返回友好错误信息，建议用户检查 Node.js 安装和文件权限
 
 ## Cron Job 配置
 
-本 Skill 依赖以下 cron jobs（由用户在 OpenClaw 配置中设置，或通过 Skill 首次激活时自动提示）：
+本 Skill 依赖以下 cron jobs 才能提供定时提醒功能：
 
-```
-0 7 * * *   # 每天 7:00 早晨称重提醒
-0 10 * * *  # 每天 10:00 健康提醒 #1
-0 15 * * *  # 每天 15:00 健康提醒 #2
-0 20 * * *  # 每天 20:00 健康提醒 #3
-0 20 * * 0  # 每周日 20:00 体重周报
+| Cron 表达式 | 描述 | 对应命令 |
+|------------|------|----------|
+| `0 7 * * *` | 每天 7:00 早晨称重提醒 | `node scripts/reminder.js morning` |
+| `0 10 * * *` | 每天 10:00 健康提醒 #1 | `node scripts/reminder.js health` |
+| `0 15 * * *` | 每天 15:00 健康提醒 #2 | `node scripts/reminder.js health` |
+| `0 20 * * *` | 每天 20:00 健康提醒 #3 | `node scripts/reminder.js health` |
+| `0 20 * * 0` | 每周日 20:00 体重周报 | `node scripts/report.js weekly` |
+
+### OpenClaw 平台
+首次安装时，提醒用户配置 cron jobs：
+```bash
+openclaw cron add hwm-morning "0 7 * * *"
 ```
 
-> 首次安装时，提醒用户配置 cron jobs：`openclaw cron add hwm-morning "0 7 * * *"`
+### Hermes Agent 平台
+使用 `cronjob` 工具注册定时任务，或通过 CLI：
+```bash
+hermes cron add --name hwm-morning --schedule "0 7 * * *" \
+  --command "node ~/.hermes/skills/health/health-weight-manager/scripts/reminder.js morning"
+```
 
 ## 健康小贴士库
 

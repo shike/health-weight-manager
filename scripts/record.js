@@ -8,31 +8,10 @@
 
 const fs = require('fs');
 const path = require('path');
+const { getDataDir, ensureDir, getTodayStr, readAllRecords, DEFAULT_TIMEZONE } = require('./utils');
 
 const MIN_WEIGHT = 20;   // 最小合理体重 (kg)
 const MAX_WEIGHT = 300;  // 最大合理体重 (kg)
-
-/**
- * 获取数据目录路径
- */
-function getDataDir() {
-  return path.resolve(__dirname, '..', 'data');
-}
-
-/**
- * 获取今日日期字符串 (YYYY-MM-DD)
- */
-function getTodayStr(timezone = 'Asia/Shanghai') {
-  const now = new Date();
-  // 使用 Intl.DateTimeFormat 处理时区
-  const formatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  });
-  return formatter.format(now);
-}
 
 /**
  * 解析体重输入
@@ -67,31 +46,25 @@ function parseWeightInput(input) {
 
 /**
  * 检查今日是否已记录
+ * @param {string} dataDir - 数据目录路径
+ * @param {string} timezone - 时区
+ * @returns {boolean}
  */
 function hasRecordedToday(dataDir, timezone) {
-  const recordsPath = path.join(dataDir, 'weight_records.jsonl');
-  if (!fs.existsSync(recordsPath)) {
-    return false;
-  }
+  const records = readAllRecords(dataDir);
+  const tz = timezone || DEFAULT_TIMEZONE;
+  const todayStr = getTodayStr(tz);
 
-  const todayStr = getTodayStr(timezone);
-  const content = fs.readFileSync(recordsPath, 'utf-8').trim();
-
-  if (!content) return false;
-
-  const lines = content.split('\n').filter(line => line.trim());
-  for (const line of lines) {
-    try {
-      const record = JSON.parse(line);
-      if (record.timestamp && record.timestamp.startsWith(todayStr)) {
-        return true;
-      }
-    } catch {
-      // 忽略解析失败的行
-    }
-  }
-
-  return false;
+  return records.some(r => {
+    const recordDate = new Date(r.timestamp);
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    return formatter.format(recordDate) === todayStr;
+  });
 }
 
 /**
@@ -106,7 +79,7 @@ function record(input, dataDir) {
 
   // 确保目录存在
   if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+    ensureDir(dir);
   }
 
   // 解析输入
@@ -116,7 +89,7 @@ function record(input, dataDir) {
   }
 
   // 读取时区配置
-  let timezone = 'Asia/Shanghai';
+  let timezone = DEFAULT_TIMEZONE;
   const configPath = path.join(dir, 'user_config.json');
   if (fs.existsSync(configPath)) {
     try {
@@ -127,7 +100,7 @@ function record(input, dataDir) {
     }
   }
 
-  // 构建记录对象
+  // 构建记录对象（使用 ISO 8601 格式，保留时区信息）
   const now = new Date();
   const timestamp = now.toISOString();
 
